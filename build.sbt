@@ -6,7 +6,8 @@ scalacOptions in ThisBuild ++= Seq(
 )
 libraryDependencies ++= Seq(
   "com.github.mpilquist" %% "simulacrum" % "0.13.0",
-  "org.scalaz" %% "scalaz-core" % "7.2.26"
+  "org.scalaz" %% "scalaz-core" % "7.2.26",
+  "eu.timepit" %% "refined-scalaz" % "0.9.2"
 )
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7")
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
