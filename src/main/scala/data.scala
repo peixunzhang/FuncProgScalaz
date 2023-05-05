@@ -57,7 +57,16 @@ final case class RefreshResponse(
   expires_in: Long
 )
 
-final case class UrlQuery(params: List[(String, String)])
+final case class UrlQuery(params: List[(String, String)]) {
+  def forUrl(url: String Refined Url): String Refined Url =
+    if (params.isEmpty) url
+    else {
+      // ?foo=bar&baz=bax
+      val queryString = params.map { case (k, v) => s"$k=$v" }.mkString("&")
+      // will always construct a valid url
+      refined.refineV[Url](s"${url.value}?$queryString}").toOption.get
+    }
+}
 
 @typeclass trait UrlQueryWriter[A]{
   def toUrlQuery(a: A): UrlQuery
