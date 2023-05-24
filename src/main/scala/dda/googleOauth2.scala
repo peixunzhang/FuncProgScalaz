@@ -1,3 +1,5 @@
+package dda
+
 import jsonformat.JsDecoder
 import eu.timepit.refined
 import refined.api.Refined

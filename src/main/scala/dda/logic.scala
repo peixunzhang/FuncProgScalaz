@@ -1,9 +1,16 @@
+package dda
+
 import scala.concurrent.duration._
 import scalaz.NonEmptyList
 import scalaz.Monad
-import scalaz.syntax.monad._
 import scalaz.syntax.std.list._
-import scalaz.syntax.foldable._
+import scalaz.syntax.all._
+// import scalaz.syntax.applicative._
+import scalaz.Applicative
+import scalaz.Equal
+import scalaz.Show
+import scalaz.Cord
+// import scalaz.syntax.monad._
   
 final case class Epoch(millis: Long) extends AnyVal {
   def +(d:FiniteDuration): Epoch = Epoch(millis+d.toMillis)
@@ -33,46 +40,51 @@ final case class WorldView(
   time: Epoch
 )
 
+object WorldView {
+  implicit val equal: Equal[WorldView] = new Equal[WorldView] {
+    def equal(a1: WorldView, a2: WorldView): Boolean = a1 == a2
+  }
+
+  implicit val show: Show[WorldView] = new Show[WorldView] {
+    def show(f: WorldView): Cord = Cord(f.toString())
+  }
+}
+
 trait DynAgents[F[_]] {
   def initial: F[WorldView]
   def update(old: WorldView): F[WorldView]
   def act(world: WorldView): F[WorldView]
 }
 
-final class DynAgentsModule[F[_]: Monad](D: Drone[F], M: Machines[F]) extends DynAgents[F] {
+final class DynAgentsModule[F[_]: Applicative](D: Drone[F], M: Machines[F]) extends DynAgents[F] {
 
-  def initial: F[WorldView] = for {
-    db <- D.getBacklog
-    da <- D.getAgents
-    mm <- M.getManaged
-    ma <- M.getAlive
-    mt <- M.getTime
-  } yield WorldView(db, da, mm, ma, Map.empty, mt)
-  
-  def update(old: WorldView): F[WorldView] = for {
-    snap <- initial
-    changed = symdiff(old.alive.keySet, snap.alive.keySet)
-    pending = (old.pending -- changed).filterNot {
-      case (_, started) => (snap.time - started) >= 10.minutes
-    }
-    update = snap.copy(pending = pending)
-  } yield update
+  def initial: F[WorldView] = {
+    (D.getBacklog |@| D.getAgents |@| M.getManaged |@| M.getAlive |@| M.getTime)(WorldView(_, _, _, _, Map.empty, _))
+  }
+    
+  def update(old: WorldView): F[WorldView] = { 
+    for {
+      snap <- initial
+      changed = symdiff(old.alive.keySet, snap.alive.keySet)
+      pending = (old.pending -- changed).filterNot {
+        case (_, started) => (snap.time - started) >= 10.minutes
+      }
+      update = snap.copy(pending = pending)
+    } yield update
+}
 
   private def symdiff[T](a: Set[T], b: Set[T]): Set[T] = (a union b) -- (a intersect b)
   
   def act(world: WorldView): F[WorldView] = world match {
     case NeedsAgent(node) => 
-      for {
-        _ <- M.start(node)
-        update = world.copy(pending = Map(node -> world.time))
-      } yield update
+      M.start(node) >| world.copy(pending = Map(node -> world.time))
 
     case Stale(nodes) =>
-      nodes.foldLeftM(world) { (world, n) => 
-        for {
-          _ <- M.stop(n)
-          update = world.copy(pending = world.pending + (n -> world.time))
-        } yield update
+      nodes.traverse { node =>
+        M.stop(node) >| node
+      }.map { stopped =>
+        val updates = stopped.strengthR(world.time).toList.toMap
+        world.copy(pending = world.pending ++ updates)
       }
     
     case _ => world.pure[F]

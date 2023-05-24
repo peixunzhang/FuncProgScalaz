@@ -1,3 +1,5 @@
+package dda
+
 import eu.timepit.refined
 import refined.api.Refined
 import refined.string.Url
