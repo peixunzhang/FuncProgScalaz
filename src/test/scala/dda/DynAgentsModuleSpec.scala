@@ -9,6 +9,10 @@ import scalaz.Const
 import scalaz.std.string._
 import scalaz.Id.Id
 import time._
+import scalaz.syntax.all._
+import scalaz.std.set._
+import scalaz.std.tuple._
+import scalaz.Equal
 
 object Data {
   val node1 = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
@@ -86,5 +90,16 @@ final class DynAgentsModuleSpec extends Test {
     val world = WorldView(1, 1, managed, alive, Map.empty, time4)
 
     program.act(world).getConst shouldBe "stopstop"
+  }
+
+  it should "monitor stopped nodes" in {
+    val underlying = new Mutable(needsAgents).program
+
+    val alive = Map(node1 -> time1, node2 -> time1)
+    val world = WorldView(1, 1, managed, alive, Map.empty, time4)
+    val expected = world.copy(pending = Map(node1 -> time4, node2 -> time4))
+
+    val monitored = new Monitored(underlying)
+    monitored.act(world) shouldBe (expected -> Set(node1, node2))
   }
 }

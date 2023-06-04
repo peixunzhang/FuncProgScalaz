@@ -10,6 +10,8 @@ import scalaz.Applicative
 import scalaz.Equal
 import scalaz.Show
 import scalaz.Cord
+import scalaz.Order
+import scalaz.std.string._
 // import scalaz.syntax.monad._
   
 final case class Epoch(millis: Long) extends AnyVal {
@@ -23,6 +25,18 @@ trait Drone[F[_]] {
 }
 
 final case class MachineNode(id: String)
+
+object MachineNode {
+  implicit val equal: Equal[MachineNode] = new Equal[MachineNode] {
+    def equal(a1: MachineNode, a2: MachineNode): Boolean = a1 == a2
+  }
+  implicit val order: Order[MachineNode] =Order.apply[String].contramap(_.id)
+
+  implicit val show: Show[MachineNode] = new Show[MachineNode] {
+    def show(f: MachineNode): Cord = Cord(f.id)
+  }
+}
+
 trait Machines[F[_]] {
   def getTime: F[Epoch]
   def getManaged: F[NonEmptyList[MachineNode]]
