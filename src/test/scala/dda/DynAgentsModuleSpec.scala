@@ -13,6 +13,8 @@ import scalaz.syntax.all._
 import scalaz.std.set._
 import scalaz.std.tuple._
 import scalaz.Equal
+import scalaz.State.{get, modify}
+import scalaz.State
 
 object Data {
   val node1 = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
@@ -76,6 +78,40 @@ class Mutable(state: WorldView) {
   val program = new DynAgentsModule[Id] (D, M)
 }
 
+final case class World (
+  backlog: Int,
+  agents: Int,
+  managed: NonEmptyList[MachineNode],
+  alive: Map[MachineNode, Epoch],
+  started: Set[MachineNode],
+  stopped: Set[MachineNode],
+  time: Epoch
+)
+
+object StateImpl {
+  type F[a] = State[World, a]
+
+  private val D = new Drone[F] {
+    def getBacklog: F[Int] = get.map(_.backlog)
+    def getAgents: F[Int] = get.map(_.agents)    
+  }
+
+  private val M = new Machines[F] {
+    def getTime: F[Epoch] = get.map(_.time)
+    
+    def getManaged: F[NonEmptyList[MachineNode]] = get.map(_.managed)
+    
+    def getAlive: F[Map[MachineNode,Epoch]] = get.map(_.alive)
+    
+    def start(node: MachineNode): F[MachineNode] = modify[World](w => w.copy(started = w.started + node)).as(node)
+    
+    def stop(node: MachineNode): F[MachineNode] = modify[World](w => w.copy(stopped = w.stopped + node)).as(node)
+  }
+  val program = new DynAgentsModule[F](D, M)
+}
+
+
+
 final class DynAgentsModuleSpec extends Test {
   "Business Logic" should "generate an initial world view" in {
     val mutable = new Mutable(needsAgents)
@@ -101,5 +137,16 @@ final class DynAgentsModuleSpec extends Test {
 
     val monitored = new Monitored(underlying)
     monitored.act(world) shouldBe (expected -> Set(node1, node2))
+  }
+
+  it should "request agents when needed" in {
+    val world1 = World(5, 0, managed, Map.empty, Set.empty, Set.empty, time1)
+    val view1 = WorldView(5, 0, managed, Map.empty, Map.empty, time1)
+
+    val (world2, view2) = StateImpl.program.act(view1).run(world1)
+
+    view2.shouldBe(view1.copy(pending = Map(node1 -> time1)))
+    world2.stopped.shouldBe(world1.stopped)
+    world2.started.shouldBe(Set(node1))
   }
 }

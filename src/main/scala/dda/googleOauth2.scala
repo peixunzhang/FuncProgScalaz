@@ -22,6 +22,12 @@ trait JsonClient[F[_]] {
   ): F[A]
 }
 
+object JsonClient {
+  sealed abstract class Error
+  final case class ServerError(status: Int) extends Error
+  final case class DecodingError(message: String) extends Error
+}
+
 final case class CodeToken(token: String, redirect_uri: String Refined Url)
 
 trait UserInteration[F[_]] {
@@ -88,4 +94,8 @@ class OAuth2Client[F[_]: Monad](
       expires = time + msg.expires_in.seconds
       bearer = BearerToken(msg.access_token, expires)
     } yield bearer
+}
+
+trait ConfigReader[F[_]] {
+  def token: F[RefreshToken]
 }
