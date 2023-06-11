@@ -1,9 +1,16 @@
-package dda
+package unsorted
 import scalaz.Functor
 import scalaz.Const
 import scalaz.NonEmptyList
 import scalaz.std.set._
 import scalaz.syntax.all._
+import dda.WorldView
+import dda.MachineNode
+import dda.DynAgentsModule
+import dda.Epoch
+import dda.Machines
+import dda.Drone
+import dda.DynAgents
 
 final class Monitored[U[_]: Functor](program: DynAgents[U]) {
   type F[a] = Const[Set[MachineNode], a]

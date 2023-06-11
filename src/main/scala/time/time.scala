@@ -1,8 +1,9 @@
-package dda
+package time
 
 import java.time._
 import contextual._
 import scala.util.control.NonFatal
+import dda.Epoch
 
 object time {
 

@@ -15,6 +15,8 @@ import scalaz.std.tuple._
 import scalaz.Equal
 import scalaz.State.{get, modify}
 import scalaz.State
+import time._
+import unsorted.Monitored
 
 object Data {
   val node1 = MachineNode("1243d1af-828f-4ba3-9fc0-a19d86852b5a")
