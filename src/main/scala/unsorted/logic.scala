@@ -1,4 +1,4 @@
-package dda
+package unsorted
 
 import scala.concurrent.duration._
 import scalaz.NonEmptyList
